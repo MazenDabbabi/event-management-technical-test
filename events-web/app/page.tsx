@@ -1,65 +1,159 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useEffect, useMemo, useState } from "react";
+import Topbar from "./components/Topbar";
+import EventForm from "./components/EventForm";
+import EventsSection from "./components/EventsSection";
+
+export default function Page() {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+  const apiUrlOk = typeof baseUrl === "string" && baseUrl.trim().length > 0;
+
+  const [events, setEvents] = useState<any[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+  const [eventsError, setEventsError] = useState("");
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState("");
+
+  const [clientsByEventId, setClientsByEventId] = useState<Record<string, any[]>>({});
+  const [loadingClientsEventId, setLoadingClientsEventId] = useState<string | number | null>(null);
+  const [clientsError, setClientsError] = useState("");
+
+  const canSubmit = useMemo(() => {
+    return title.trim().length > 0 && description.trim().length > 0 && date.trim().length > 0;
+  }, [title, description, date]);
+
+  async function fetchEvents() {
+    if (!baseUrl) return;
+    setLoadingEvents(true);
+    setEventsError("");
+    try {
+      const res = await fetch(`${baseUrl}/events`);
+      if (!res.ok) throw new Error(`Failed to load events (${res.status})`);
+      const data = await res.json();
+      setEvents(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      setEventsError(err?.message || "Unknown error while loading events");
+    } finally {
+      setLoadingEvents(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  async function addEvent(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSubmit || !baseUrl) return;
+    setEventsError("");
+    setLoadingEvents(true);
+    try {
+      const payload = { title, description, date };
+      const res = await fetch(`${baseUrl}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`Failed to add event (${res.status})`);
+      const created = await res.json();
+      if (created?.id != null) setEvents((prev) => [created, ...prev]);
+      else await fetchEvents();
+
+      setTitle("");
+      setDescription("");
+      setDate("");
+    } catch (err: any) {
+      setEventsError(err?.message || "Unknown error while adding event");
+    } finally {
+      setLoadingEvents(false);
+    }
+  }
+
+  async function deleteEvent(eventId: string | number) {
+    if (!eventId || !baseUrl) return;
+    setEventsError("");
+    setLoadingEvents(true);
+    try {
+      const res = await fetch(`${baseUrl}/events/${eventId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Failed to delete event (${res.status})`);
+      setClientsByEventId((prev) => {
+        const next = { ...prev };
+        delete next[String(eventId)];
+        return next;
+      });
+      setEvents((prev) => prev.filter((ev) => String(ev.id) !== String(eventId)));
+    } catch (err: any) {
+      setEventsError(err?.message || "Unknown error while deleting event");
+    } finally {
+      setLoadingEvents(false);
+    }
+  }
+
+  async function fetchClients(eventId: string | number) {
+    if (!eventId || !baseUrl) return;
+    setClientsError("");
+    setLoadingClientsEventId(eventId);
+    try {
+      const res = await fetch(`${baseUrl}/events/${eventId}/users`);
+      if (!res.ok) throw new Error(`Failed to load clients (${res.status})`);
+      const data = await res.json();
+      setClientsByEventId((prev) => ({
+        ...prev,
+        [String(eventId)]: Array.isArray(data) ? data : [],
+      }));
+    } catch (err: any) {
+      setClientsError(err?.message || "Unknown error while loading clients");
+    } finally {
+      setLoadingClientsEventId(null);
+    }
+  }
+
+  if (!apiUrlOk) {
+    return (
+      <div className="container containerFull">
+        <div className="topbar">
+          <div>
+            <h1 className="brandTitle">Event Manager - Web</h1>
+            <p className="brandSub">
+              Missing environment variable <code>NEXT_PUBLIC_API_URL</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="container containerFull">
+      <Topbar baseUrl={baseUrl} />
+
+      <div className="layout">
+        <EventForm
+          title={title}
+          description={description}
+          date={date}
+          canSubmit={canSubmit}
+          loadingEvents={loadingEvents}
+          eventsError={eventsError}
+          onTitleChange={(e : any) => setTitle(e.target.value)}
+          onDescriptionChange={(e : any) => setDescription(e.target.value)}
+          onDateChange={(e : any) => setDate(e.target.value)}
+          onSubmit={addEvent}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+
+        <EventsSection
+          events={events}
+          loadingEvents={loadingEvents}
+          clientsByEventId={clientsByEventId}
+          clientsError={clientsError}
+          loadingClientsEventId={loadingClientsEventId}
+          onFetchClients={fetchClients}
+          onDeleteEvent={deleteEvent}
+        />
+      </div>
     </div>
   );
 }
