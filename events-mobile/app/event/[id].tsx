@@ -45,23 +45,24 @@ export default function EventDetailsScreen() {
   }, [id]);
 
   const handleRegister = async () => {
-    if (!token) {
+    if (!token || !user) {
       router.push("/auth");
       return;
     }
 
     setRegistering(true);
     try {
-      await API.post(
-        `/events/${id}/register`,
-        {},
+      await API.post(`/events/${id}/register`, { userId: user.id });
+      Alert.alert("Inscription validee", "Tu es inscrit a cet evenement.", [
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      Alert.alert("Inscription validee", "Tu es inscrit a cet evenement.");
+          text: "OK",
+          onPress: () =>
+            router.replace({
+              pathname: "/events",
+              params: { registeredId: String(id) },
+            }),
+        },
+      ]);
     } catch (error: any) {
       const message = error?.response?.data?.error || "Inscription impossible.";
       Alert.alert("Erreur", message);

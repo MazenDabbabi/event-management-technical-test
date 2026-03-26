@@ -9,7 +9,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { useAuth } from "@/context/AuthContext";
 import API from "@/services/api";
@@ -25,6 +25,7 @@ export default function EventsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { width } = useWindowDimensions();
+  const { registeredId } = useLocalSearchParams<{ registeredId?: string }>();
 
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +98,12 @@ export default function EventsScreen() {
             style={[styles.card, { width: cardWidth }]}
             onPress={() => router.push({ pathname: "/event/[id]", params: { id: item.id } })}
           >
-            <Text style={styles.cardTitle}>{item.title}</Text>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>{item.title}</Text>
+              {registeredId && String(item.id) === String(registeredId) ? (
+                <Text style={styles.registeredBadge}>Inscrit</Text>
+              ) : null}
+            </View>
             <Text numberOfLines={2} style={styles.cardDescription}>
               {item.description || "Aucune description."}
             </Text>
@@ -194,6 +200,21 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#0f172a",
     marginBottom: 4,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  registeredBadge: {
+    backgroundColor: "#dcfce7",
+    color: "#166534",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    fontSize: 12,
+    fontWeight: "700",
   },
   cardDescription: {
     color: "#475569",
