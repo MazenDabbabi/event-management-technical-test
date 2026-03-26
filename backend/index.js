@@ -47,16 +47,11 @@ app.post("/login", async (req, res) => {
 
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
 
-    res.json({ token });
+    res.json({ token, user: { id: user.id, email: user.email } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
-app.listen(process.env.PORT, () => {
-  console.log("Server running on port " + process.env.PORT);
-});
-
 
 // --- Events Routes ---
 
@@ -64,6 +59,19 @@ app.listen(process.env.PORT, () => {
 app.get("/events", async (req, res) => {
   const result = await pool.query("SELECT * FROM events");
   res.json(result.rows);
+});
+
+// Get single event by id
+app.get("/events/:id", async (req, res) => {
+  const { id } = req.params;
+  const result = await pool.query("SELECT * FROM events WHERE id=$1", [id]);
+  const event = result.rows[0];
+
+  if (!event) {
+    return res.status(404).json({ error: "Event not found" });
+  }
+
+  res.json(event);
 });
 
 // Add event
@@ -96,15 +104,35 @@ app.get("/events/:id/users", async (req, res) => {
   res.json(result.rows);
 });
 
+// Get events a user is registered to
+app.get("/users/:id/events", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      "SELECT event_id FROM event_users WHERE user_id=$1",
+      [id]
+    );
+    const eventIds = result.rows.map((row) => row.event_id);
+    res.json(eventIds);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Register user to an event
 app.post("/events/:id/register", async (req, res) => {
   const { id } = req.params; 
   const { userId } = req.body; 
   try {
-    await pool.query(
-      "INSERT INTO event_users (event_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    const result = await pool.query(
+      "INSERT INTO event_users (event_id, user_id) VALUES ($1, $2) ON CONFLICT (event_id, user_id) DO NOTHING RETURNING *",
       [id, userId]
     );
+
+    if (result.rowCount === 0) {
+      return res.status(400).json({ error: "User already registered for this event" });
+    }
+
     res.json({ message: "User registered to event" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -118,4 +146,4 @@ app.get("/", (req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));
