@@ -53,19 +53,21 @@ export default function EventDetailsScreen() {
     setRegistering(true);
     try {
       await API.post(`/events/${id}/register`, { userId: user.id });
-      Alert.alert("Inscription validee", "Tu es inscrit a cet evenement.", [
-        {
-          text: "OK",
-          onPress: () =>
-            router.replace({
-              pathname: "/events",
-              params: { registeredId: String(id) },
-            }),
-        },
-      ]);
+      router.push({
+        pathname: "/events",
+        params: { registeredId: String(id), status: "registered" },
+      });
     } catch (error: any) {
       const message = error?.response?.data?.error || "Inscription impossible.";
-      Alert.alert("Erreur", message);
+
+      if (message === "User already registered for this event") {
+        router.push({
+          pathname: "/events",
+          params: { registeredId: String(id), status: "already" },
+        });
+      } else {
+        Alert.alert("Erreur", message);
+      }
     } finally {
       setRegistering(false);
     }

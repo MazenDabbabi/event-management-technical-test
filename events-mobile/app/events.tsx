@@ -25,7 +25,10 @@ export default function EventsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { width } = useWindowDimensions();
-  const { registeredId } = useLocalSearchParams<{ registeredId?: string }>();
+  const { registeredId, status } = useLocalSearchParams<{
+    registeredId?: string;
+    status?: string;
+  }>();
 
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +85,16 @@ export default function EventsScreen() {
           </Pressable>
         ) : null}
       </View>
+
+      {registeredId ? (
+        <View style={styles.successBanner}>
+          <Text style={styles.successBannerText}>
+            {status === "already"
+              ? "Vous etes deja inscrit a cet evenement."
+              : "Inscription validee pour cet evenement."}
+          </Text>
+        </View>
+      ) : null}
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -172,6 +185,21 @@ const styles = StyleSheet.create({
     color: "#b91c1c",
     paddingHorizontal: 18,
     marginBottom: 8,
+  },
+  successBanner: {
+    marginHorizontal: 18,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#dcfce7",
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+  successBannerText: {
+    color: "#166534",
+    fontWeight: "600",
+    fontSize: 13,
   },
   listContent: {
     paddingHorizontal: 18,
