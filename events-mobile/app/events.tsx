@@ -31,6 +31,7 @@ export default function EventsScreen() {
   }>();
 
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [registeredEvents, setRegisteredEvents] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,13 +43,24 @@ export default function EventsScreen() {
       setError(null);
       const res = await API.get<EventItem[]>("/events");
       setEvents(res.data ?? []);
+
+      if (user) {
+        try {
+          const registeredRes = await API.get<number[]>(`/users/${user.id}/events`);
+          setRegisteredEvents(registeredRes.data ?? []);
+        } catch {
+          // ignore registered-events loading errors in UI for now
+        }
+      } else {
+        setRegisteredEvents([]);
+      }
     } catch (err: any) {
       setError(err?.response?.data?.error || "Impossible de charger les evenements.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     loadEvents();
@@ -113,7 +125,8 @@ export default function EventsScreen() {
           >
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>{item.title}</Text>
-              {registeredId && String(item.id) === String(registeredId) ? (
+              {(registeredId && String(item.id) === String(registeredId)) ||
+              registeredEvents.includes(item.id) ? (
                 <Text style={styles.registeredBadge}>Inscrit</Text>
               ) : null}
             </View>
